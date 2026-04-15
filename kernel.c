@@ -29,7 +29,7 @@
 
 #define KERNEL_NAME        "AaronOS"
 #define KERNEL_VERSION     "3.9.0-STABLE"
-#define KERNEL_BUILD       "2026-04-13-QEMU/UTM"
+#define KERNEL_BUILD       "2026-04-15"
 
 /* VGA Hardware Memory Map boundaries */
 #define VIDEO_ADDR         0xB8000
