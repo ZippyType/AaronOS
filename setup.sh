@@ -20,14 +20,15 @@ gcc -m32 -c editor.c -o editor.o -ffreestanding -O2 -fno-stack-protector
 gcc -m32 -c fat16.c -o fat16.o -ffreestanding -O2 -fno-stack-protector
 gcc -m32 -c memory.c -o memory.o -ffreestanding -O2 -fno-stack-protector
 gcc -m32 -c kernel.c -o kernel.o -ffreestanding -O2 -fno-stack-protector
+gcc -m32 -c gui.c -o gui.o -ffreestanding -O2 -fno-stack-protector
 
 
 # Link everything together
 # We include memory.o and fat16.o to ensure the new features are linked
-ld -m elf_i386 -T linker.ld -o kernel.elf boot.o keyboard.o installer.o editor.o fat16.o memory.o kernel.o --no-warn-rwx-segments
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o keyboard.o installer.o editor.o fat16.o memory.o kernel.o gui.o --no-warn-rwx-segments
 
 # ISO creation
-# We assume your grub.cfg is already in the correct location (iso_root/boot/grub/grub.cfg)
+# We assume your grub.cfg is already in the correct location (iso_root/boot/grub/grub.cfg) 
 mkdir -p iso_root/boot/grub
 cp kernel.elf iso_root/boot/
 
