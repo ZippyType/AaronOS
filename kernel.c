@@ -107,32 +107,31 @@
  * data (from font_data.h) directly into VGA Plane 2. 
  */
 void load_custom_font() {
-    // 1. Synchronous Reset: Set bit 0 of the Sequencer Reset register (0x3C4, index 0)
-    // We must read the existing value, set the bit, and write it back.
-    outb(0x3C4, 0x00);
-    uint8_t seq_reg = inb(0x3C5);
-    outb(0x3C4, 0x00);
-    outb(0x3C5, seq_reg | 0x01); 
-
-    // 2. Unlock Sequencer to write to Memory Plane 2 (where the font lives)
-    outb(0x3C4, 0x02); outb(0x3C5, 0x04); // Write to plane 2
-    outb(0x3C4, 0x04); outb(0x3C5, 0x07); // Enable sequential addressing
+    // 1. Stop Sequencer
+    outb(0x3C4, 0x00); outb(0x3C5, 0x01); 
     
-    // 3. End Synchronous Reset
-    outb(0x3C4, 0x00);
-    outb(0x3C5, seq_reg & ~0x01);
-
-    // 4. Copy the font data from your custom_font[] array to Plane 2 memory
-    // VGA Font memory starts at 0xA0000 when in this mode
+    // 2. Enable write access to Plane 2 (where font data lives)
+    outb(0x3C4, 0x02); outb(0x3C5, 0x04); 
+    outb(0x3C4, 0x04); outb(0x3C5, 0x07); 
+    
+    // 3. Restart Sequencer
+    outb(0x3C4, 0x00); outb(0x3C5, 0x03); 
+    
+    // 4. Upload your custom_font[] data
     uint8_t* font_plane = (uint8_t*)0xA0000;
     for(int i = 0; i < 4096; i++) {
         font_plane[i] = custom_font[i];
     }
-
-    // 5. Restore normal VGA operation (Plane 0/1)
-    outb(0x3C4, 0x02); outb(0x3C5, 0x03); // Back to plane 0/1
-    outb(0x3C4, 0x04); outb(0x3C5, 0x02); // Standard addressing mode
-    outb(0x3C4, 0x00); outb(0x3C5, 0x03); // Enable sequencer
+    
+    // 5. CRITICAL: Switch the Graphics Controller to use the loaded font
+    // This tells the VGA card: "Use Plane 2 for the character shapes"
+    outb(0x3CE, 0x06); // Graphics Controller Index 6
+    uint8_t val = inb(0x3CF);
+    outb(0x3CE, 0x06); outb(0x3CF, (val & 0x0C) | 0x02); 
+    
+    // 6. Reset Sequencer back to normal text mode operation
+    outb(0x3C4, 0x02); outb(0x3C5, 0x03); 
+    outb(0x3C4, 0x04); outb(0x3C5, 0x02);
 }
 /* ========================================================================== */
 /* 2. KERNEL GLOBAL STATE                                                     */
