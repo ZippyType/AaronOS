@@ -98,6 +98,25 @@
 #define NOTE_D5            587
 #define NOTE_E5            659
 
+/* Load Custom font */
+#include "font_data.h"
+
+/* 
+ * LOAD CUSTOM FONT: 
+ * This reconfigures the VGA sequencer to upload our custom bitmap 
+ * data (from font_data.h) directly into VGA Plane 2. 
+ */
+void load_custom_font() {
+    outb(0x3C4, 0x00); outb(0x3C5, 0x01); // Stop Sequencer
+    outb(0x3C4, 0x02); outb(0x3C5, 0x04); // Write to plane 2
+    outb(0x3C4, 0x04); outb(0x3C5, 0x07); // Sequential addressing
+    outb(0x3C4, 0x00); outb(0x3C5, 0x03); // Start Sequencer
+    
+    uint8_t* font_plane = (uint8_t*)0xA0000;
+    for(int i = 0; i < 4096; i++) {
+        font_plane[i] = custom_font[i];
+    }
+}
 /* ========================================================================== */
 /* 2. KERNEL GLOBAL STATE                                                     */
 /* ========================================================================== */
@@ -1207,6 +1226,7 @@ void kernel_main() {
     // Final pause
     for(volatile int i=0; i<15000000; i++); 
     clear_screen();
+    load_custom_font()
     
     boot_jingle(); // Play startup sound
     print("Welcome to AaronOS! \n Use help for commands.\n");
