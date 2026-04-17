@@ -98,8 +98,6 @@
 #define NOTE_D5            587
 #define NOTE_E5            659
 
-/* Load Custom font */
-#include "font_data.h"
 
 /* 
  * LOAD CUSTOM FONT: 
