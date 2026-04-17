@@ -202,9 +202,20 @@ extern int tui_needs_redraw;
 
 /* Network Drivers */
 /* Networking Subsystem Hooks */
+
+/* Memory buffers (Must be contiguous physical memory, aligned for DMA) */
+/* Networking Subsystem Hooks */
 extern void net_init(uint32_t io_base);
 extern void net_send_raw_packet(uint8_t* dest_mac, uint16_t protocol, uint8_t* payload, uint32_t payload_len);
 extern uint8_t my_mac[6];
+extern void net_ping(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);// Current TX buffer
+/* Networking & Browser Subsystem Hooks */
+extern void net_poll();
+extern void net_init(uint32_t io_base);
+extern void run_browser(char* ip_str);
+extern uint8_t my_mac[6];
+extern int browser_ready;
+extern char browser_buffer[2048];
 /* ========================================================================== */
 /* 4. FORWARD DECLARATIONS                                                    */
 /* ========================================================================== */
@@ -808,6 +819,7 @@ void print_help() {
     print("matrix    - Enter the matrix\n");
     print("color [h] - Change text color (hex, e.g. color 0A)\n");
     print("calc      - Basic math (e.g. calc 5 + 10 or calc sin 90)\n");
+    print("ping      - This is just a test, but it sends a package.\n");
     print("Use arrow keys to scroll up and down.\n");
 }
 
@@ -932,29 +944,32 @@ void process_shell() {
             play_song(notes, durations, 6);
         }
             // Add this to your shell commands:
-        else if (kstrcmp(input_buffer, "netstat") == 0) {
-            print_col("--- Network Interface Status ---\n", COLOR_HELP);
-            print("Driver: Realtek RTL8139 Fast Ethernet\n");
-            print("MAC Address: ");
-            for(int i=0; i<6; i++) {
-                char buf[3]; itoa(my_mac[i], buf, 16);
-                print(buf); if(i<5) print(":");
-            }
-            print("\nStatus: UP\n");
-        }
-        else if (kstrcmp(input_buffer, "ping") == 0) {
-            print("Sending Raw Broadcast Packet (Layer 2)...\n");
-            
-            // Broadcast MAC address (FF:FF:FF:FF:FF:FF)
-            uint8_t broadcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-            
-            // Dummy payload ("PING")
-            uint8_t payload[] = {'P', 'I', 'N', 'G', '!', 0x00};
-            
-            // Send it using EtherType 0x0800 (IPv4)
-            net_send_raw_packet(broadcast_mac, 0x0800, payload, 6);
-        }
+        
         else if (kstrcmp(input_buffer, "matrix") == 0) run_matrix();
+
+/* --- Network & Web Commands --- */
+        else if (kstrcmp(input_buffer, "netstat") == 0) {
+            print_col("--- AaronOS Network Stack ---\n", COLOR_HELP);
+            print("Interface: RTL8139 (PCI)\n");
+            print("IP Address: 10.0.2.15\n");
+            print("Status: Link Active\n");
+        }
+        else if (kstrncmp(input_buffer, "web ", 4) == 0) {
+            // This triggers the real TCP handshake in browser.c
+            run_browser(&input_buffer[4]);
+            return; // Exit shell so browser can take over the screen
+        }
+        else if (kstrcmp(input_buffer, "web") == 0) {
+            print("Usage: web [target_ip]\nExample: web 93.184.216.34\n");
+        }
+        else if (kstrncmp(input_buffer, "ping ", 5) == 0) {
+            char* ip = &input_buffer[5];
+            int i0 = katoi(ip); while(*ip != '.' && *ip != '\0') ip++; ip++;
+            int i1 = katoi(ip); while(*ip != '.' && *ip != '\0') ip++; ip++;
+            int i2 = katoi(ip); while(*ip != '.' && *ip != '\0') ip++; ip++;
+            int i3 = katoi(ip);
+            net_ping(i0, i1, i2, i3);
+        }
         else print("Unknown command. Type help for commands.");
     }
     
@@ -1037,16 +1052,26 @@ void pci_scan() {
             uint16_t vendor = pci_config_read_word(bus, slot, 0, 0);
             if(vendor != 0xFFFF) {
                 uint16_t device = pci_config_read_word(bus, slot, 0, 2);
-                // 0x10EC = Realtek, 0x8139 = RTL8139
+                
                 if(vendor == 0x10EC && device == 0x8139) {
                     print_col("[PCI] Found RTL8139 Network Card!\n", COLOR_SUCCESS);
                     
-                    // Read Base Address Register 0 (BAR0)
+                    // 1. Read the PCI Command Register (Offset 0x04)
+                    uint16_t cmd = pci_config_read_word(bus, slot, 0, 0x04);
+                    
+                    // 2. Enable Bus Mastering (Bit 2) and I/O Space (Bit 0)
+                    cmd |= 0x0005; 
+                    
+                    // 3. Write it back to the PCI Bus
+                    uint32_t address = (uint32_t)((bus << 16) | (slot << 11) | (0 << 8) | 0x04 | 0x80000000);
+                    outl(0xCF8, address);
+                    outw(0xCFC, cmd); // Grant the card permission to read RAM!
+
+                    // 4. Get Base Address (BAR0) and Init
                     uint32_t bar0_low = pci_config_read_word(bus, slot, 0, 0x10);
                     uint32_t bar0_high = pci_config_read_word(bus, slot, 0, 0x12);
                     uint32_t bar0 = (bar0_high << 16) | bar0_low;
                     
-                    // Strip the lowest 2 bits (I/O space flags) and pass to driver
                     net_init(bar0 & ~0x3); 
                     return;
                 }
@@ -1055,7 +1080,6 @@ void pci_scan() {
     }
     print_col("[PCI] Network card not found.\n", COLOR_ALERT);
 }
-
 void kernel_main() {
     current_col = 0; current_row = 0; scroll_offset = 0; in_gui_mode = 0; boot_log_count = 0;
     clear_screen();
@@ -1098,8 +1122,17 @@ void kernel_main() {
     prompt_limit = current_col;
 
     // Infinite idle loop
+   /* Master Execution Loop */
     while (1) { 
-        if (execute_flag == 1 ) { process_shell(); execute_flag = 0; }
-        asm volatile("hlt"); // Rest processor until next interrupt
+        if (execute_flag == 1 ) {
+            process_shell(); 
+            execute_flag = 0;
+        }
+
+        // CRITICAL: Check the network card for data every single CPU cycle
+        net_poll(); 
+
+        // Brief halt to save power, will wake up on next PIT tick or Keypress
+        asm volatile("hlt"); 
     }
 }
