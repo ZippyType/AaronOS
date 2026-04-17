@@ -198,6 +198,13 @@ extern int in_gui_mode;
 extern int tui_selected_item;
 extern int tui_max_items;
 extern int tui_needs_redraw;
+
+
+/* Network Drivers */
+/* Networking Subsystem Hooks */
+extern void net_init(uint32_t io_base);
+extern void net_send_raw_packet(uint8_t* dest_mac, uint16_t protocol, uint8_t* payload, uint32_t payload_len);
+extern uint8_t my_mac[6];
 /* ========================================================================== */
 /* 4. FORWARD DECLARATIONS                                                    */
 /* ========================================================================== */
