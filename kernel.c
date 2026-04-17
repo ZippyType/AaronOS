@@ -1121,16 +1121,18 @@ void kernel_main() {
 
     // Infinite idle loop
    /* Master Execution Loop */
+    /* Master Loop - Force Net-Poll on every single tick */
     while (1) { 
         if (execute_flag == 1 ) {
             process_shell(); 
             execute_flag = 0;
         }
 
-        // CRITICAL: Check the network card for data every single CPU cycle
-        net_poll(); 
-
-        // Brief halt to save power, will wake up on next PIT tick or Keypress
+        // Poll multiple times per loop to keep the NIC buffer empty
+        net_poll();
+        net_poll();
+        net_poll();
+        
         asm volatile("hlt"); 
     }
 }
