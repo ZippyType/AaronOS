@@ -12,10 +12,10 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "Files modified. Enter commit message (leave blank to skip) (Always test before commiting):"
     read commit_msg
     if [ -n "$commit_msg" ]; then
-        git rm -r --cached .
+        git rm -r --cached . >/dev/null
         git add .
         git commit -m "$commit_msg"
-        git push -u origin main --force >/dev/null
+        git push -u origin main --force 
     fi
 fi
 
