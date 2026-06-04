@@ -16,6 +16,7 @@ aaronos
 opencode
 *.md
 !README.md
+!todo.md
 
 # Keep your scripts, but ignore specific helper tools if they aren't source code
 *.sh
