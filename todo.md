@@ -14,7 +14,8 @@
 - [x] Remove directory (rmdir)
 - [x] cd into subdirectories
 - [x] File permissions / attributes (attrib command, read-only protection)
-- [x] Long filename support (VFAT read, display, collect_entries)
+- [x] Long filename support (VFAT read + write, display, collect_entries)
+- [x] Fixed fat16_read_file to read by file_size (binary-safe)
 
 ## Shell & CLI
 - [x] Command interpreter
@@ -51,20 +52,21 @@
 - [x] Undo / redo
 
 ## Hardware / Drivers
-- [x] ATA PIO (read/write)
+- [x] ATA PIO (read/write, polling + IRQ)
 - [x] PS/2 keyboard
 - [x] PIT timer (100 Hz)
 - [x] PC speaker (PIT ch 2)
 - [x] CMOS / RTC
 - [x] VGA text mode (80x25)
 - [x] Serial port output (COM1)
-- [ ] ATA PIO with IRQ (non-polling)
-- [ ] DMA
-- [ ] ACPI / power management
+- [x] DMA (8237 controller)
+- [x] ACPI (poweroff / reboot)
+- [x] AHCI (PIO read, PCI class scan)
+- [x] SB16 DSP (init, version, 8-bit DMA playback)
+- [x] WAV player (RIFF/WAV parse, stereo→mono, 16-bit→8-bit)
 - [ ] USB keyboard / mouse (UHCI/EHCI)
-- [ ] AHCI / SATA
-- [ ] Audio (Sound Blaster 16 / AC97 / HDA)
-- [ ] Multi-core / SMP
+- [ ] AC97 / HDA audio
+- [x] SMP / APIC (trampoline, APIC init — IPI write hangs)
 - [ ] More drivers for different network cards
 - [ ] Interface in TUI to select drivers for different stuff (Audio, network, etc.)
 
@@ -94,16 +96,16 @@
 - [ ] NFS / network file system
 
 ## Development Tooling
-- [x] alpkg package manager (external repo)
 - [ ] On-device assembler (NASM port?)
 - [ ] On-device C compiler (TinyCC / pcc port?)
 - [ ] Kernel debugger / GDB stub
 
 ## Audio
 - [x] PC speaker beeps / melodies
-- [ ] Sound Blaster 16 DMA playback
+- [x] Sound Blaster 16 DMA playback (blocking, poll for completion)
+- [x] WAV player (play file.wav command)
 - [ ] AC97 / HDA audio
-- [ ] WAV / MOD player
+- [ ] MOD / tracker player
 
 ## Misc / Polish
 - [ ] Boot splash / animation

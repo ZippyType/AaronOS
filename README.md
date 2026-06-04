@@ -220,6 +220,10 @@ The script builds the ISO from source, optionally creates a 10 MB hard disk imag
 
 ---
 
+## Roadmap
+
+See [`todo.md`](todo.md) for the full project roadmap — what's done, in progress, and planned.
+
 ## License
 
 AaronOS is free software released under the GNU General Public License v3 or later (GPL‑3.0‑or‑later).
