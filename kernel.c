@@ -196,6 +196,7 @@ extern void fat16_rmdir(char* name);
 extern int fat16_read_file(char* name, char* buffer, int max_len);
 extern void fat16_cd(char* name);
 extern void fat16_attrib(char* args);
+extern uint32_t fat16_file_size(char* name);
 extern void fat16_get_cwd(char* buf, int max);
 extern uint16_t fat16_get_cwd_cluster();
 extern int fat16_collect_display_names(char (*names)[13], int max);
@@ -210,6 +211,7 @@ extern void timer_handler_asm();
 extern void syscall_handler_asm();
 extern void ata_handler_asm();
 extern void* malloc(size_t size);
+extern void free(void* ptr);
 extern void load_idt(uint32_t ptr);
 
 /* Hardware driver externs */
@@ -229,6 +231,7 @@ extern void mouse_clear();
 extern void mouse_invalidate();
 extern int sb16_is_present();
 extern void sb16_play_dma(uint8_t* data, uint32_t len, uint32_t freq);
+extern int sb16_play_wav(uint8_t* data, uint32_t file_len);
 
 /* GUI functions */
 /* GUI module references (from gui.c) */
@@ -1234,6 +1237,26 @@ void run_command(char* cmd) {
                 }
                 sb16_play_dma(wave, 4096, 8000);
             } else { print("Usage: sb16 test\n"); }
+        } else { print("SB16 not available.\n"); }
+    }
+    else if (kstrncmp(cmd, "play ", 5) == 0) {
+        if (sb16_is_present()) {
+            char* fname = &cmd[5];
+            /* Read file into memory */
+            uint32_t fsize = fat16_file_size(fname);
+            if (fsize == 0) { print("File not found or empty.\n"); }
+            else {
+                uint8_t* buf = malloc(fsize);
+                if (!buf) { print("Out of memory.\n"); }
+                else {
+                    int rlen = fat16_read_file(fname, (char*)buf, (int)fsize);
+                    if (rlen > 0)
+                        sb16_play_wav(buf, fsize);
+                    else
+                        print("Error reading file.\n");
+                    free(buf);
+                }
+            }
         } else { print("SB16 not available.\n"); }
     }
     else if (kstrcmp(cmd, "siren") == 0) {

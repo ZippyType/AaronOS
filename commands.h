@@ -58,6 +58,7 @@ command_t commands[] = {
     CMD("poweroff", "Power off system (ACPI)"),
     CMD("sb16",     "Sound Blaster 16 test (sb16 test)"),
     CMD("attrib",   "View/set file attributes (attrib [+-RHS] file)"),
+    CMD("play",     "Play WAV file (play file.wav)"),
 };
 
 #define NUM_COMMANDS (sizeof(commands) / sizeof(command_t))

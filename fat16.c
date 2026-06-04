@@ -1042,20 +1042,30 @@ int fat16_read_file(char* name, char* buffer, int max_len) {
     if (idx < 0) return -1;
     struct FAT16_DirEntry entry;
     if (!get_entry_at(idx, &entry)) return -1;
+    uint32_t remaining = entry.file_size;
+    if ((int)remaining > max_len - 1) remaining = max_len - 1;
     uint16_t cluster = entry.first_cluster_low;
     int total = 0;
-    while (cluster >= 2 && cluster < 0xFFF0) {
+    while (cluster >= 2 && cluster < 0xFFF0 && total < (int)remaining) {
         uint32_t sector = DATA_START_SECTOR + cluster - 2;
         uint8_t data_buf[512];
-        if (!ata_read_sector(sector, data_buf)) return total;
-        for (int i = 0; i < 512 && total < max_len - 1; i++) {
-            if (data_buf[i] == 0) { buffer[total] = '\0'; return total; }
+        if (!ata_read_sector(sector, data_buf)) break;
+        for (int i = 0; i < 512 && total < (int)remaining; i++) {
             buffer[total++] = data_buf[i];
         }
         cluster = fat_read_entry(cluster);
     }
     buffer[total] = '\0';
     return total;
+}
+
+uint32_t fat16_file_size(char* name) {
+    if (!disk_ready()) return 0;
+    int idx = find_file(name);
+    if (idx < 0) return 0;
+    struct FAT16_DirEntry entry;
+    if (!get_entry_at(idx, &entry)) return 0;
+    return entry.file_size;
 }
 
 int fat16_collect_entries(fat16_entry_t* entries, int max) {

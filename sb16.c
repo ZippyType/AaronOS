@@ -51,7 +51,7 @@ int sb16_init() {
     uint8_t min = dsp_read();
     print("SB16: DSP v"); 
     {
-        char vb[4]; vb[0] = '0' + maj; vb[1] = '.'; 
+        char vb[6]; vb[0] = '0' + maj; vb[1] = '.'; 
         if (min < 10) { vb[2] = '0' + min; vb[3] = '\0'; }
         else { vb[2] = '0' + (min / 10); vb[3] = '0' + (min % 10); vb[4] = '\0'; }
         print_col(vb, 0x09);

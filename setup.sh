@@ -15,7 +15,7 @@ if [ -n "$(git status --porcelain)" ]; then
         git rm -r --cached .
         git add .
         git commit -m "$commit_msg"
-        git push -u origin main --force
+        git push -u origin main --force >/dev/null
     fi
 fi
 
