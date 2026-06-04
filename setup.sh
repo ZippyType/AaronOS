@@ -12,6 +12,7 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "Files modified. Enter commit message (leave blank to skip) (Always test before commiting):"
     read commit_msg
     if [ -n "$commit_msg" ]; then
+        git rm -r --cached .
         git add .
         git commit -m "$commit_msg"
         git push -u origin main --force
@@ -31,21 +32,20 @@ if [ $? -ne 0 ]; then ERRORS+="boot.s "; fi
 nasm -f bin -o trampoline.bin trampoline.s
 if [ $? -ne 0 ]; then ERRORS+="trampoline.s "; fi
 
-compile_file "mouse_keyboard.c" "mouse_keyboard.o"
-compile_file "installer.c" "installer.o"
-compile_file "editor.c" "editor.o"
-compile_file "fat16.c" "fat16.o"
-compile_file "memory.c" "memory.o"
-compile_file "gui.c" "gui.o"
-compile_file "kernel.c" "kernel.o"
-compile_file "net.c" "net.o"
-compile_file "browser.c" "browser.o"
-compile_file "elf.c" "elf.o"
-compile_file "acpi.c" "acpi.o"
-compile_file "dma.c" "dma.o"
-compile_file "sb16.c" "sb16.o"
-compile_file "ahci.c" "ahci.o"
-compile_file "smp.c" "smp.o"
+# Auto-detect all .c files (exclude auto-generated embed.c)
+C_SRCS=()
+for f in *.c; do
+    case "$f" in
+        embed.c|embed_real.c) continue;;
+        *) C_SRCS+=("$f");;
+    esac
+done
+
+C_OBJS=()
+for f in "${C_SRCS[@]}"; do
+    compile_file "$f" "${f%.c}.o"
+    C_OBJS+=("${f%.c}.o")
+done
 
 if [ -n "$ERRORS" ]; then
     echo "ABORT: Errors detected in: $ERRORS"; exit 1
@@ -64,7 +64,7 @@ echo 'const uint32_t embedded_trampoline_len = 0;' >> embed.c
 gcc -m32 -c embed.c -o embed.o -ffreestanding -O2 -nostdlib 2>/dev/null
 
 # First pass: link kernel with stub embed.o
-ld -m elf_i386 -T linker.ld -o kernel.elf boot.o mouse_keyboard.o installer.o editor.o fat16.o memory.o gui.o kernel.o net.o browser.o elf.o acpi.o dma.o sb16.o ahci.o smp.o embed.o --no-warn-rwx-segments
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${C_OBJS[@]}" embed.o --no-warn-rwx-segments
 
 # Generate real embedded kernel binary from first-pass kernel
 python3 -c "
@@ -116,7 +116,7 @@ rm -f core.img
 gcc -m32 -c embed_real.c -o embed_real.o -ffreestanding -O2 -nostdlib 2>/dev/null
 if [ $? -eq 0 ]; then
     mv embed_real.o embed.o
-ld -m elf_i386 -T linker.ld -o kernel.elf boot.o mouse_keyboard.o installer.o editor.o fat16.o memory.o gui.o kernel.o net.o browser.o elf.o acpi.o dma.o sb16.o ahci.o smp.o embed.o --no-warn-rwx-segments
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${C_OBJS[@]}" embed.o --no-warn-rwx-segments
     echo "Embedded kernel + GRUB data included."
 else
     echo "Warning: embed_real.o failed, using first-pass kernel."
@@ -126,7 +126,7 @@ mkdir -p iso_root/boot/grub
 cp kernel.elf iso_root/boot/
 cat > iso_root/boot/grub/grub.cfg << 'GRUBEOF'
 set timeout=10
-set default=2
+set default=0
 
 set menu_color_normal=cyan/black
 set menu_color_highlight=yellow/blue
