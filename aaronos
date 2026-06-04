@@ -1,2 +1,15 @@
-opencode --session ses_173a0449fffeTccAj7Jiad69s0
+echo "Run the Setup Script?[y/N]"
+read disk_choice < /dev/tty
+if [[ "$disk_choice" == [Yy]* ]]; then
+    cd ~/AaronOS && bash setup.sh
+else
+echo "Run the OpenCode session?[y/N]"
+read disk_choice < /dev/tty
+if [[ "$disk_choice" == [Yy]* ]]; then
+echo "Opening Opencode..." && opencode --session ses_173a0449fffeTccAj7Jiad69s0
+else
+    echo "Abort."
+fi
+fi
+
 
