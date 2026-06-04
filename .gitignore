@@ -12,6 +12,10 @@ aaronos.pcaps
 embed.c
 embed_real.c
 chat.json
+aaronos
+opencode
+*.md
+!README.md
 
 # Keep your scripts, but ignore specific helper tools if they aren't source code
 *.sh
