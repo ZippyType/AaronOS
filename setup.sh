@@ -93,7 +93,7 @@ mkdir -p iso_root/boot
 cp kernel.elf iso_root/boot/
 cp limine/limine-bios.sys iso_root/
 cp limine/limine-bios-cd.bin iso_root/
-cp limine.cfg iso_root/
+cp limine.conf iso_root/
 
 xorriso -as mkisofs \
     -b limine-bios-cd.bin \
