@@ -89,11 +89,12 @@ ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${C_OBJS[@]}" "${DRV_OBJS[@]}"
 if [ $? -ne 0 ]; then echo "ABORT: Link failed"; exit 1; fi
 
 # --- 4. ISO CREATION (Limine) ---
+rm -f iso_root/boot/kernel.elf iso_root/boot/limine.conf iso_root/limine-bios.sys iso_root/limine-bios-cd.bin iso_root/limine.conf iso_root/limine.cfg 2>/dev/null
 mkdir -p iso_root/boot
 cp kernel.elf iso_root/boot/
 cp limine/limine-bios.sys iso_root/
 cp limine/limine-bios-cd.bin iso_root/
-cp limine.conf iso_root/
+cp limine.conf iso_root/boot/
 
 xorriso -as mkisofs \
     -b limine-bios-cd.bin \
