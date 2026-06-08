@@ -25,6 +25,8 @@
 #include "commands.h"
 #include "version.h"
 #include "elf.h"
+#include "drivers/ps2k.h"
+#include "drivers/ps2m.h"
 
 /* VGA Hardware Memory Map boundaries */
 #define VIDEO_ADDR         0xB8000
@@ -204,7 +206,6 @@ extern int ata_init();
 
 extern void run_installation();
 extern void run_editor(char* filename);
-
 extern void keyboard_handler_asm();
 extern void mouse_handler_asm();
 extern void timer_handler_asm();
@@ -225,10 +226,7 @@ extern int ahci_init();
 extern int ahci_is_present();
 extern int smp_init();
 extern int smp_cpu_count();
-extern int mouse_init();
-extern void mouse_render();
-extern void mouse_clear();
-extern void mouse_invalidate();
+
 extern int sb16_is_present();
 extern void sb16_play_dma(uint8_t* data, uint32_t len, uint32_t freq);
 extern void sb16_play_pio(uint8_t* data, uint32_t len, uint32_t freq);

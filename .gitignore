@@ -11,6 +11,9 @@ aaronos.pcaps
 *.tmp
 embed.c
 embed_real.c
+
+# Limine binaries (downloaded separately)
+limine/
 chat.json
 aaronos
 opencode

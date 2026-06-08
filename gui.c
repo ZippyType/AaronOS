@@ -3,6 +3,7 @@
 #include "io.h"
 #include "version.h"
 #include "fat16.h"
+#include "drivers/ps2m.h"
 
 #define SCREEN_WIDTH       80
 #define SCREEN_HEIGHT      25
@@ -34,9 +35,7 @@ void print_col(const char* str, uint8_t col);
 void refresh_screen();
 void update_cursor_relative();
 void read_rtc();
-void mouse_render();
-void mouse_clear();
-extern int mouse_buttons;
+
 void sleep(uint32_t ticks);
 void itoa(int num, char* str, int base);
 size_t kstrlen(const char* str);
@@ -442,6 +441,12 @@ void launch_tui() {
         /* Mouse click handling in GUI mode */
         if (mouse_buttons && !prev_buttons) {
             if (mouse_buttons & 1) {
+                if (tui_state == 0) {
+                    /* Map mouse Y to main‑menu item */
+                    int item_y = mouse_y - ((SCREEN_HEIGHT - 12) / 2 + 2);
+                    if (item_y >= 0 && item_y <= 5)
+                        tui_selected_item = item_y;
+                }
                 input_buffer[0] = '\n';
                 input_ptr = 1;
                 execute_flag = 1;
