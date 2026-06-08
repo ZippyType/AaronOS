@@ -1,0 +1,24 @@
+# Ignore build artifacts
+*.o
+*.elf
+*.bin
+*.log
+iso_root/boot/kernel.elf
+
+# Ignore OS-specific images or temp files
+hd.img
+aaronos.pcaps
+*.tmp
+embed.c
+embed_real.c
+chat.json
+aaronos
+opencode
+*.md
+!README.md
+!todo.md
+
+# Keep your scripts, but ignore specific helper tools if they aren't source code
+*.sh
+!setup.sh
+!mount_hd.sh
