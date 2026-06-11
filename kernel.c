@@ -993,7 +993,8 @@ void print_help() {
         print(commands[i].description);
         print("\n");
     }
-    print("Use arrow keys to scroll up and down.\n");
+    print("Use Alt + Arrow keys to scroll up and down.\n");
+    print("Use arrow keys to see previous commands executed\n");
 }
 
 int evaluate_condition(char* cond) {
