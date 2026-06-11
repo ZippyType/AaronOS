@@ -19,6 +19,7 @@ extern volatile int ctrl_c_flag;
 
 static int shift_active = 0;
 static int ctrl_active = 0;
+static int alt_active = 0;
 
 unsigned char kbd_standard[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
@@ -41,19 +42,21 @@ void keyboard_handler_main() {
         uint8_t key = scancode & 0x7F;
         if (key == 0x1D) ctrl_active = 0;
         if (key == 0x2A || key == 0x36) shift_active = 0;
+        if (key == 0x38) alt_active = 0;
         goto finished;
     }
 
     if (scancode == 0x1D) { ctrl_active = 1; goto finished; }
     if (scancode == 0x2A || scancode == 0x36) { shift_active = 1; goto finished; }
+    if (scancode == 0x38) { alt_active = 1; goto finished; }
 
     if (ctrl_active && scancode == 0x2E) {
         ctrl_c_flag = 1;
         execute_flag = 1;
     }
 
-    if (scancode == 0x48) { if (in_gui_mode) scroll_up(); else handle_history_up(); goto finished; }
-    if (scancode == 0x50) { if (in_gui_mode) scroll_down(); else handle_history_down(); goto finished; }
+    if (scancode == 0x48) { if (in_gui_mode || alt_active) scroll_up(); else handle_history_up(); goto finished; }
+    if (scancode == 0x50) { if (in_gui_mode || alt_active) scroll_down(); else handle_history_down(); goto finished; }
 
     char ascii = shift_active ? kbd_shifted[scancode] : kbd_standard[scancode];
 
