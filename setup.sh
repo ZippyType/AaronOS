@@ -23,7 +23,7 @@ fi
 
 compile_file() {
     echo "Compiling $1..."
-    gcc -m32 -c "$1" -o "$2" -ffreestanding -O2 -fno-stack-protector -I.
+    gcc -m32 -c "$1" -o "$2" -ffreestanding -O1 -fno-stack-protector -I.
     if [ $? -ne 0 ]; then ERRORS+="$1 "; fi
 }
 
