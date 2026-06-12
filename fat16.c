@@ -23,6 +23,24 @@ extern int kstrcmp(const char* a, const char* b);
 static uint16_t next_free_cluster = 2;
 static uint16_t current_dir_cluster = 0;
 static char current_path[128] = "";
+static uint32_t partition_lba = 0;
+
+void fat16_set_partition_offset(uint32_t lba) {
+    partition_lba = lba;
+}
+
+static void fat16_detect_partition() {
+    uint8_t mbr[512];
+    if (!ata_read_sector(0, mbr)) return;
+    if (mbr[510] != 0x55 || mbr[511] != 0xAA) return;
+    for (int i = 0; i < 4; i++) {
+        uint8_t* e = mbr + 446 + i * 16;
+        if (e[0] == 0x80 && (e[4] == 0x06 || e[4] == 0x0E)) {
+            partition_lba = *(uint32_t*)(e + 8);
+            return;
+        }
+    }
+}
 
 /* Forward declarations for VFAT helpers */
 static int get_entry_at_in(int index, struct FAT16_DirEntry* out, uint16_t dir_cluster);
@@ -278,10 +296,12 @@ int ata_init() {
     uint16_t identify_buf[256];
     ata_delay();
     for (int i = 0; i < 256; i++) identify_buf[i] = inw(0x1F0);
+    fat16_detect_partition();
     return 1;
 }
 
 int ata_read_sector(uint32_t lba, uint8_t* buffer) {
+    lba += partition_lba;
     if (!disk_ready()) return 0;
     outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
     outb(0x1F2, 1);
@@ -297,6 +317,7 @@ int ata_read_sector(uint32_t lba, uint8_t* buffer) {
 }
 
 int ata_write_sector(uint32_t lba, const uint8_t* buffer) {
+    lba += partition_lba;
     if (!disk_ready()) return 0;
     outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
     outb(0x1F2, 1);
@@ -490,13 +511,19 @@ void fat16_format_drive() {
     *(uint16_t*)(s0 + 14) = 384;
     s0[16] = 2;
     *(uint16_t*)(s0 + 17) = 512;
-    *(uint16_t*)(s0 + 19) = 20480;
+    uint32_t total = 20480 - partition_lba;
+    if (total > 65535) {
+        *(uint16_t*)(s0 + 19) = 0;
+        *(uint32_t*)(s0 + 32) = total;
+    } else {
+        *(uint16_t*)(s0 + 19) = (uint16_t)total;
+        *(uint32_t*)(s0 + 32) = 0;
+    }
     s0[21] = 0xF8;
     *(uint16_t*)(s0 + 22) = 80;
     *(uint16_t*)(s0 + 24) = 63;
     *(uint16_t*)(s0 + 26) = 16;
-    *(uint32_t*)(s0 + 28) = 0;
-    *(uint32_t*)(s0 + 32) = 0;
+    *(uint32_t*)(s0 + 28) = partition_lba;
     s0[36] = 0x80;
     s0[37] = 0;
     s0[38] = 0x29;

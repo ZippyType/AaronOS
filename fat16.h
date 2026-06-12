@@ -81,4 +81,9 @@ int fat16_collect_entries(fat16_entry_t* entries, int max);
 int disk_ready();
 int ata_init();
 
+void fat16_set_partition_offset(uint32_t lba);
+
+int ata_read_sector(uint32_t lba, uint8_t* buffer);
+int ata_write_sector(uint32_t lba, const uint8_t* buffer);
+
 #endif

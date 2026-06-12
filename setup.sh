@@ -5,7 +5,7 @@ if [ "$1" = "--nographic" ]; then NOGRAPHIC=1; fi
 
 # --- 1. COMMIT STEP ---
 echo "Cleaning up..."
-rm -f *.o drivers/*.o kernel.elf aaron_os.iso aaronos.pcap core.img trampoline_embed.c installer_stubs.c
+rm -f *.o drivers/*.o kernel.elf kernel_first.elf aaron_os.iso aaronos.pcap core.img trampoline_embed.c aim_embed.o aim_stub.o aaronos.aim
 ERRORS=""
 echo "Checking for changes..."
 if [ -n "$(git status --porcelain)" ]; then
@@ -55,9 +55,8 @@ if [ -n "$ERRORS" ]; then
     echo "ABORT: Errors detected in: $ERRORS"; exit 1
 fi
 
-# --- 3. EMBEDDED DATA ---
+# --- 3. EMBEDDED DATA (trampoline for SMP) ---
 
-# Generate trampoline_embed.c from trampoline.bin (for SMP)
 python3 -c "
 tdata = open('trampoline.bin', 'rb').read()
 with open('trampoline_embed.c', 'w') as f:
@@ -69,26 +68,42 @@ with open('trampoline_embed.c', 'w') as f:
     f.write('const uint32_t embedded_trampoline_len = ' + str(len(tdata)) + ';\n')
 "
 
-# Generate installer stubs for GRUB symbols (installer needs rewrite for Limine)
-python3 -c "
-with open('installer_stubs.c', 'w') as f:
-    f.write('#include <stdint.h>\n')
-    f.write('const uint8_t grub_boot_img[] = {0};\n')
-    f.write('const uint32_t grub_boot_img_len = 0;\n')
-    f.write('const uint8_t grub_core_img[] = {0};\n')
-    f.write('const uint32_t grub_core_img_len = 0;\n')
-    f.write('const uint8_t embedded_kernel[] = {0};\n')
-    f.write('const uint32_t embedded_kernel_len = 0;\n')
-"
-
 gcc -m32 -c trampoline_embed.c -o trampoline_embed.o -ffreestanding -O2 -nostdlib 2>/dev/null
-gcc -m32 -c installer_stubs.c -o installer_stubs.o -ffreestanding -O2 -nostdlib 2>/dev/null
 
-# --- 4. LINK ---
-ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${C_OBJS[@]}" "${DRV_OBJS[@]}" trampoline_embed.o installer_stubs.o --no-warn-rwx-segments
-if [ $? -ne 0 ]; then echo "ABORT: Link failed"; exit 1; fi
+# --- 4. TWO-PASS BUILD ---
 
-# --- 4. ISO CREATION (Limine) ---
+# Create stub .aim symbols for first-pass link (replaced by real aim_embed.o in pass 2)
+echo 'const uint8_t _binary_aaronos_aim_start[1]={0};const uint8_t _binary_aaronos_aim_end[1]={0};' > /tmp/aim_stub.c
+gcc -m32 -c /tmp/aim_stub.c -o aim_stub.o -ffreestanding -O2 -nostdlib 2>/dev/null
+
+# Pass 1: Link kernel_first.elf with aim_stub.o (placeholders for .aim symbols)
+echo "[Pass 1] Linking kernel_first.elf..."
+ld -m elf_i386 -T linker.ld -o kernel_first.elf boot.o "${C_OBJS[@]}" "${DRV_OBJS[@]}" trampoline_embed.o aim_stub.o --no-warn-rwx-segments
+if [ $? -ne 0 ]; then echo "ABORT: First-pass link failed"; exit 1; fi
+
+# Create .aim archive with: limine-bios.sys, kernel.elf (from pass 1), limine_installed.conf
+echo "[Pass 1] Creating .aim archive..."
+python3 tools/aim_pack.py aaronos.aim \
+    "limine-bios.sys:limine/limine-bios.sys" \
+    "kernel.elf:kernel_first.elf" \
+    "limine_installed.conf:limine_installed.conf"
+if [ $? -ne 0 ]; then echo "ABORT: .aim creation failed"; exit 1; fi
+
+# Generate object file from .aim archive
+echo "[Pass 2] Embedding .aim..."
+objcopy -I binary -O elf32-i386 -B i386 \
+    --rename-section .data=.rodata,alloc,load,readonly,data,contents \
+    aaronos.aim aim_embed.o
+if [ $? -ne 0 ]; then echo "ABORT: objcopy failed"; exit 1; fi
+
+# Pass 2: Link final kernel.elf replacing stubs with real .aim data
+echo "[Pass 2] Linking kernel.elf..."
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${C_OBJS[@]}" "${DRV_OBJS[@]}" trampoline_embed.o aim_embed.o --no-warn-rwx-segments
+if [ $? -ne 0 ]; then echo "ABORT: Second-pass link failed"; exit 1; fi
+
+echo "[OK] kernel.elf ready ($(stat -c%s kernel.elf) bytes)"
+
+# --- 5. ISO CREATION (Limine) ---
 rm -f iso_root/boot/kernel.elf iso_root/boot/limine.conf iso_root/limine-bios.sys iso_root/limine-bios-cd.bin iso_root/limine.conf iso_root/limine.cfg 2>/dev/null
 mkdir -p iso_root/boot
 cp kernel.elf iso_root/boot/
@@ -114,7 +129,7 @@ limine/limine bios-install aaron_os.iso 2>/dev/null
 
 echo "Build successful!"
 
-# --- 5. DYNAMIC RELEASE MANAGER ---
+# --- 6. DYNAMIC RELEASE MANAGER ---
 echo "Create a GitHub draft release? [y/N]"
 read release_choice < /dev/tty
 
@@ -175,7 +190,7 @@ if [[ "$release_choice" == [Yy]* ]]; then
     echo "Draft release '$custom_title' created."
 fi
 
-# --- 6. BOOT ---
+# --- 7. BOOT ---
 echo "Create a new 10M hard disk image (hd.img)? [y/N]"
 read disk_choice < /dev/tty
 if [[ "$disk_choice" == [Yy]* ]]; then
@@ -185,7 +200,7 @@ else
 fi
 
 echo "Finalizing... Starting AaronOS Emulator"
-rm -f *.o drivers/*.o *.elf core.img trampoline_embed.c installer_stubs.c 2>/dev/null
+rm -f *.o drivers/*.o *.elf core.img trampoline_embed.c aim_embed.o aim_stub.o aaronos.aim /tmp/aim_stub.c 2>/dev/null
 
 if [ "$NOGRAPHIC" -eq 1 ]; then
     qemu-system-x86_64 -cdrom aaron_os.iso -drive file=hd.img,format=raw,if=ide,index=0,media=disk -boot order=d -m 256M -machine pc -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -audiodev pa,id=sb16 -device sb16,audiodev=sb16 -netdev user,id=n1 -device rtl8139,netdev=n1 -object filter-dump,id=f1,netdev=n1,file=aaronos.pcap -nographic -device loader,addr=0x500,data=0xBB,data-len=1 -no-reboot
