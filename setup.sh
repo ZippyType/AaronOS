@@ -73,7 +73,7 @@ gcc -m32 -c trampoline_embed.c -o trampoline_embed.o -ffreestanding -O2 -nostdli
 # --- 4. TWO-PASS BUILD ---
 
 # Create stub .aim symbols for first-pass link (replaced by real aim_embed.o in pass 2)
-echo 'const uint8_t _binary_aaronos_aim_start[1]={0};const uint8_t _binary_aaronos_aim_end[1]={0};' > /tmp/aim_stub.c
+printf '#include <stdint.h>\nconst uint8_t _binary_aaronos_aim_start[1]={0};\nconst uint8_t _binary_aaronos_aim_end[1]={0};\n' > /tmp/aim_stub.c
 gcc -m32 -c /tmp/aim_stub.c -o aim_stub.o -ffreestanding -O2 -nostdlib 2>/dev/null
 
 # Pass 1: Link kernel_first.elf with aim_stub.o (placeholders for .aim symbols)
@@ -104,9 +104,10 @@ if [ $? -ne 0 ]; then echo "ABORT: Second-pass link failed"; exit 1; fi
 echo "[OK] kernel.elf ready ($(stat -c%s kernel.elf) bytes)"
 
 # --- 5. ISO CREATION (Limine) ---
-rm -f iso_root/boot/kernel.elf iso_root/boot/limine.conf iso_root/limine-bios.sys iso_root/limine-bios-cd.bin iso_root/limine.conf iso_root/limine.cfg 2>/dev/null
+rm -f iso_root/overlay.bmp iso_root/boot/kernel.elf iso_root/boot/limine.conf iso_root/limine-bios.sys iso_root/limine-bios-cd.bin iso_root/limine.conf iso_root/limine.cfg 2>/dev/null
 mkdir -p iso_root/boot
 cp kernel.elf iso_root/boot/
+cp overlay.bmp iso_root/
 cp limine/limine-bios.sys iso_root/
 cp limine/limine-bios-cd.bin iso_root/
 cp limine.fnt iso_root/boot/
